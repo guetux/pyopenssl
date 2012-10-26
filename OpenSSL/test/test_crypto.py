@@ -317,6 +317,14 @@ class X509ExtTests(TestCase):
             'X509Extension', b('basicConstraints'), True, b('CA:true'))
 
 
+    def test_modulus(self):
+        """
+        The modulus of the certificate and the private key should
+        match
+        """
+        self.assertEqual(self.pkey.modulus(), self.x509.modulus())
+
+
     def test_construction(self):
         """
         L{X509Extension} accepts an extension type name, a critical flag,

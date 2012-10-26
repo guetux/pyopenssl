@@ -668,6 +668,47 @@ crypto_X509_digest(crypto_X509Obj *self, PyObject *args)
     return ret;
 }
 
+static char crypto_X509_modulus_doc[] = "\n\
+Print the RSA / DSA key modulus.\n\
+\n\
+@return: modulus\n\
+";
+
+static PyObject *
+crypto_X509_modulus(crypto_X509Obj *self, PyObject *args)
+{
+    EVP_PKEY *pkey;
+    PyObject *str;
+    char *tmp_str;
+    int str_len;
+    BIO *bio = BIO_new(BIO_s_mem());
+
+    if (!PyArg_ParseTuple(args, ":modulus"))
+    {
+        BIO_free(bio);
+        return NULL;
+    }
+
+    if ((pkey = X509_get_pubkey(self->x509)) == NULL)
+    {
+        BIO_free(bio);
+        exception_from_error_queue(crypto_Error);
+        return NULL;
+    }
+
+    if (pkey->type == EVP_PKEY_RSA)
+        BN_print(bio, pkey->pkey.rsa->n);
+    else
+    if (pkey->type == EVP_PKEY_DSA)
+        BN_print(bio, pkey->pkey.dsa->pub_key);
+
+    EVP_PKEY_free(pkey);
+    str_len = BIO_get_mem_data(bio, &tmp_str);
+    str = PyString_FromStringAndSize(tmp_str, str_len);
+    BIO_free(bio);
+
+    return str;
+}
 
 static char crypto_X509_add_extensions_doc[] = "\n\
 Add extensions to the certificate.\n\
@@ -678,7 +719,7 @@ Add extensions to the certificate.\n\
 
 static PyObject *
 crypto_X509_add_extensions(crypto_X509Obj *self, PyObject *args)
-{   
+{
     PyObject *extensions, *seq;
     crypto_X509ExtensionObj *ext;
     int nr_of_extensions, i;
@@ -693,10 +734,10 @@ crypto_X509_add_extensions(crypto_X509Obj *self, PyObject *args)
     nr_of_extensions = PySequence_Fast_GET_SIZE(seq);
 
     for (i = 0; i < nr_of_extensions; i++)
-    { 
+    {
         ext = (crypto_X509ExtensionObj *)PySequence_Fast_GET_ITEM(seq, i);
         if (!crypto_X509Extension_Check(ext))
-        {   
+        {
             Py_DECREF(seq);
             PyErr_SetString(PyExc_ValueError,
                             "One of the elements is not an X509Extension");
@@ -790,6 +831,7 @@ static PyMethodDef crypto_X509_methods[] =
     ADD_METHOD(has_expired),
     ADD_METHOD(subject_name_hash),
     ADD_METHOD(digest),
+    ADD_METHOD(modulus),
     ADD_METHOD(add_extensions),
     ADD_METHOD(get_extension),
     ADD_METHOD(get_extension_count),

@@ -25,7 +25,7 @@ do {                                    \
     exception_from_error_queue(crypto_Error); \
     return NULL;                        \
 } while (0)
-    
+
 
 static char crypto_PKey_generate_key_doc[] = "\n\
 Generate a key of a given type, with a given number of a bits\n\
@@ -139,6 +139,48 @@ crypto_PKey_check(crypto_PKeyObj *self, PyObject *args) {
     }
 }
 
+static char crypto_PKey_modulus_doc[] = "\n\
+Print the RSA / DSA key modulus.\n\
+\n\
+@return: modulus\n\
+";
+
+static PyObject *
+crypto_PKey_modulus(crypto_PKeyObj *self, PyObject *args)
+{
+    EVP_PKEY *pkey;
+    PyObject *str;
+    char *tmp_str;
+    int str_len;
+    BIO *bio = BIO_new(BIO_s_mem());
+    RSA *rsa=NULL;
+    DSA *dsa=NULL;
+
+    if (!PyArg_ParseTuple(args, ":modulus"))
+    {
+        BIO_free(bio);
+        return NULL;
+    }
+
+    if (self->pkey->type == EVP_PKEY_RSA)
+    {
+        rsa = EVP_PKEY_get1_RSA(self->pkey);
+        BN_print(bio, rsa->n);
+    }
+    else
+    if (self->pkey->type == EVP_PKEY_DSA)
+    {
+        dsa = EVP_PKEY_get1_DSA(pkey);
+        BN_print(bio, dsa->pub_key);
+    }
+
+    str_len = BIO_get_mem_data(bio, &tmp_str);
+    str = PyString_FromStringAndSize(tmp_str, str_len);
+    BIO_free(bio);
+
+    return str;
+}
+
 /*
  * ADD_METHOD(name) expands to a correct PyMethodDef declaration
  *   {  'name', (PyCFunction)crypto_PKey_name, METH_VARARGS }
@@ -152,6 +194,7 @@ static PyMethodDef crypto_PKey_methods[] =
     ADD_METHOD(bits),
     ADD_METHOD(type),
     ADD_METHOD(check),
+    ADD_METHOD(modulus),
     { NULL, NULL }
 };
 #undef ADD_METHOD
